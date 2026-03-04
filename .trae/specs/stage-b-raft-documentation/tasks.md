@@ -1,0 +1,88 @@
+# Tasks
+
+- [x] Task 1: 创建阶段 B 文档目录结构
+  - [x] SubTask 1.1: 在 `docs/DistributedKV_Guide/` 下创建 `stageB` 子目录
+  - [x] SubTask 1.2: 验证目录创建成功，确保命名符合规范（全小写）
+
+- [x] Task 2: 编写 Raft 协议技术白皮书文档（StageB_01.md）
+  - [x] SubTask 2.1: 编写文档框架（目录结构、章节编号）
+  - [x] SubTask 2.2: 编写"Raft 协议基本概念与核心架构"模块
+    - 分布式系统背景与一致性问题定义
+    - Raft 协议设计原则
+    - 整体架构图（Leader/Follower/Candidate 状态机）
+  - [x] SubTask 2.3: 编写"领导人选举机制"模块
+    - 任期（Term）概念详解
+    - 选举触发条件（超时、心跳）
+    - 候选人资格与投票规则
+    - 选举安全性保障（Split Vote 处理）
+    - 选举流程图
+  - [x] SubTask 2.4: 编写"日志复制机制"模块
+    - 日志条目结构（Log Entry）
+    - 复制流程（AppendEntries RPC）
+    - 一致性保证（日志匹配属性）
+    - 冲突解决策略（覆盖与截断）
+    - 日志复制流程图
+  - [x] SubTask 2.5: 编写"安全性保障机制"模块
+    - 领导人完整性约束（Leader Completeness）
+    - 提交规则（Commit Index）
+    - 配置变更安全处理（Joint Consensus 简介）
+  - [x] SubTask 2.6: 编写"关键术语定义"模块
+    - 术语表（中英文对照）
+    - 使用场景说明
+  - [x] SubTask 2.7: 编写"协议对比分析"模块
+    - Raft vs Paxos 对比表
+    - Raft vs ZAB 对比表
+    - 适用场景分析
+  - [x] SubTask 2.8: 编写"阶段 B 定位与作用"模块
+    - 与阶段 A 的依赖关系
+    - 对阶段 C 的支撑作用
+    - 项目核心功能支撑
+
+- [x] Task 3: 细化第 7-12 周执行计划
+  - [x] SubTask 3.1: 细化第 7 周（Raft 状态机框架）执行计划
+    - SMART 目标定义
+    - 3-5 个具体执行步骤
+    - 时间节点与优先级
+    - 技术资源清单
+    - 验收标准
+  - [x] SubTask 3.2: 细化第 8 周（日志复制）执行计划
+    - SMART 目标定义
+    - 3-5 个具体执行步骤
+    - 时间节点与优先级
+    - 技术资源清单
+    - 验收标准
+  - [x] SubTask 3.3: 细化第 9 周（日志冲突处理）执行计划
+    - SMART 目标定义
+    - 3-5 个具体执行步骤
+    - 时间节点与优先级
+    - 技术资源清单
+    - 验收标准
+  - [x] SubTask 3.4: 细化第 10 周（提交与一致性保证）执行计划
+    - SMART 目标定义
+    - 3-5 个具体执行步骤
+    - 时间节点与优先级
+    - 技术资源清单
+    - 验收标准
+  - [x] SubTask 3.5: 细化第 11 周（快照机制）执行计划
+    - SMART 目标定义
+    - 3-5 个具体执行步骤
+    - 时间节点与优先级
+    - 技术资源清单
+    - 验收标准
+  - [x] SubTask 3.6: 细化第 12 周（Raft 测试与故障注入）执行计划
+    - SMART 目标定义
+    - 3-5 个具体执行步骤
+    - 时间节点与优先级
+    - 技术资源清单
+    - 验收标准
+
+- [x] Task 4: 文档格式规范化与索引更新
+  - [x] SubTask 4.1: 检查文档格式符合 Markdown 规范
+  - [x] SubTask 4.2: 添加必要的图表编号和引用标注
+  - [x] SubTask 4.3: 更新项目文档目录索引（如需要）
+
+# Task Dependencies
+
+- [Task 2] depends on [Task 1]
+- [Task 3] depends on [Task 1]
+- [Task 4] depends on [Task 2] and [Task 3]

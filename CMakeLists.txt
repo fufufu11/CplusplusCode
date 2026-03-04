@@ -36,20 +36,27 @@ enable_testing()
 add_library(DistributedKV_lib INTERFACE)
 target_include_directories(DistributedKV_lib INTERFACE ${PROJECT_SOURCE_DIR}/include)
 
+# --- SSTable Reader 实现 ---
+add_library(sstable_reader_lib STATIC src/sstable_reader.cpp)
+target_link_libraries(sstable_reader_lib PUBLIC DistributedKV_lib)
+
 # --- 可执行程序 ---
 add_executable(DistributedKV_bin src/main.cpp)
-target_link_libraries(DistributedKV_bin PRIVATE DistributedKV_lib)
+target_link_libraries(DistributedKV_bin PRIVATE sstable_reader_lib)
 
 # --- 示例 / 基准测试 ---
 add_executable(benchmark_skiplist examples/benchmark_skiplist.cpp)
 target_link_libraries(benchmark_skiplist PRIVATE DistributedKV_lib)
+
+add_executable(sstable_demo examples/sstable_demo.cpp)
+target_link_libraries(sstable_demo PRIVATE sstable_reader_lib)
 
 # --- 单元测试 ---
 add_executable(skiplist_test tests/skiplist_test.cpp)
 target_link_libraries(skiplist_test PRIVATE DistributedKV_lib GTest::gtest_main)
 
 add_executable(kv_store_test tests/kv_store_test.cpp)
-target_link_libraries(kv_store_test PRIVATE DistributedKV_lib GTest::gtest_main)
+target_link_libraries(kv_store_test PRIVATE sstable_reader_lib GTest::gtest_main)
 
 add_executable(wal_record_test tests/wal_record_test.cpp)
 target_link_libraries(wal_record_test PRIVATE DistributedKV_lib GTest::gtest_main)
@@ -57,12 +64,30 @@ target_link_libraries(wal_record_test PRIVATE DistributedKV_lib GTest::gtest_mai
 add_executable(sstable_builder_test tests/sstable_builder_test.cpp)
 target_link_libraries(sstable_builder_test PRIVATE DistributedKV_lib GTest::gtest_main)
 
+add_executable(sstable_reader_test tests/sstable_reader_test.cpp)
+target_link_libraries(sstable_reader_test PRIVATE sstable_reader_lib GTest::gtest_main)
+
+add_executable(flush_integration_test tests/flush_integration_test.cpp)
+target_link_libraries(flush_integration_test PRIVATE sstable_reader_lib GTest::gtest_main)
+
+add_executable(compaction_merger_test tests/compaction_merger_test.cpp)
+target_link_libraries(compaction_merger_test PRIVATE sstable_reader_lib GTest::gtest_main)
+
+# --- Raft 模块测试 ---
+add_executable(raft_test tests/raft_test.cc)
+target_include_directories(raft_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_link_libraries(raft_test PRIVATE DistributedKV_lib GTest::gtest_main)
+
 # 让 ctest 能够识别到此测试
 include(GoogleTest)
 gtest_discover_tests(skiplist_test)
 gtest_discover_tests(kv_store_test)
 gtest_discover_tests(wal_record_test)
 gtest_discover_tests(sstable_builder_test)
+gtest_discover_tests(sstable_reader_test)
+gtest_discover_tests(flush_integration_test)
+gtest_discover_tests(compaction_merger_test)
+gtest_discover_tests(raft_test)
 
 # --- 打印状态 ---
 message(STATUS "--------------------------------------------")

@@ -1,0 +1,3 @@
+- [x] `docs/DistributedKV_Guide/Learning_Manual.md` 新增 SSTable 章节 (AI Verified)
+- [x] `include/sstable.h` 文件存在 (User Verified)
+- [x] `include/sstable.h` 中包含正确的 `BlockHandle` 和 `Footer` 定义 (AI Verified)

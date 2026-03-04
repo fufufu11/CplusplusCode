@@ -1,0 +1,13 @@
+- [x] `include/value_type.h` 文件存在，包含 `ValueType` 枚举和 `Value` 结构体
+- [x] `ValueType` 枚举包含 `NORMAL = 0` 和 `TOMBSTONE = 1`
+- [x] `Value` 结构体包含 `data` 和 `type` 成员，以及 `is_tombstone()` 方法
+- [x] WAL 记录编码包含 ValueType 字段（1 字节）
+- [x] WAL 重放正确解析 ValueType 并处理 Tombstone
+- [x] SSTable Entry 编码包含 ValueType 字段（1 字节）
+- [x] SSTableReader::Get() 返回 `std::optional<Value>` 而非 `std::optional<std::string>`
+- [x] KVStore::get() 遇到 Tombstone 返回 `std::nullopt` 并停止查找
+- [x] KVStore::del() 写入 Tombstone 而非物理删除
+- [x] 用户可存储 `"__tombstone__"` 字符串并正确读回
+- [x] 所有单元测试通过（`ctest`）- 67/67 tests passed
+- [x] `docs/DistributedKV_Guide/chapters/06-读路径分层架构.md` 已更新，说明 ValueType 枚举方案
+- [x] `docs/DistributedKV_Guide/chapters/13-项目计划周级细化.md` 已更新，反映 ValueType 方案

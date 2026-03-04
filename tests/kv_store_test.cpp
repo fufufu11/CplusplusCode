@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 #include <filesystem>
 #include <fstream>
+#include <cstdio>
 #include "kv_store.h"
 #include "wal_record.h"
+#include "value_type.h"
 
 namespace fs = std::filesystem;
 
@@ -73,6 +75,9 @@ TEST_F(KVStoreTest, UpdateKey) {
 
 /**
  * @brief 测试删除逻辑
+ * 
+ * 注意：使用 Tombstone 机制后，del() 总是返回 true（写入 Tombstone），
+ * 即使 key 不存在也是如此。这是 LSM-Tree 的标准行为。
  */
 TEST_F(KVStoreTest, DeleteKey) {
     KVStore store(test_dir_);
@@ -81,8 +86,9 @@ TEST_F(KVStoreTest, DeleteKey) {
     EXPECT_TRUE(store.del(10));
     EXPECT_FALSE(store.get(10).has_value());
     
-    // 删除不存在的 key 应返回 false
-    EXPECT_FALSE(store.del(10));
+    // 删除不存在的 key 也会成功（写入 Tombstone）
+    // 这是 LSM-Tree 的标准行为
+    EXPECT_TRUE(store.del(10));
 }
 
 /**
@@ -268,7 +274,7 @@ TEST_F(WALReplayTest, TruncateMidRecord) {
     }
 
     fs::path wal_path = fs::path(test_dir_) / "wal.log";
-    LogRecord r1{LogType::kPut, "1", "v1"};
+    LogRecord r1{LogType::kPut, "00000000001", Value::normal("v1")};
     const auto r1_encoded = encode_log_record(r1);
     fs::resize_file(wal_path, r1_encoded.size() + 6);
 
@@ -295,7 +301,9 @@ TEST_F(WALReplayTest, CorruptMiddleRecordStopsAtPrefix) {
     std::vector<size_t> record_sizes;
     record_sizes.reserve(10);
     for (int i = 1; i <= 10; ++i) {
-        LogRecord r{LogType::kPut, std::to_string(i), "v" + std::to_string(i)};
+        char key_buf[16];
+        std::snprintf(key_buf, sizeof(key_buf), "%011d", i);
+        LogRecord r{LogType::kPut, std::string(key_buf), Value::normal("v" + std::to_string(i))};
         record_sizes.push_back(encode_log_record(r).size());
     }
 
@@ -306,7 +314,7 @@ TEST_F(WALReplayTest, CorruptMiddleRecordStopsAtPrefix) {
 
     {
         std::fstream wal(wal_path, std::ios::binary | std::ios::in | std::ios::out);
-        wal.seekp(static_cast<std::streamoff>(offset + 13));
+        wal.seekp(static_cast<std::streamoff>(offset + 14));
         wal.put(static_cast<char>(0xFF));
     }
 
@@ -321,4 +329,171 @@ TEST_F(WALReplayTest, CorruptMiddleRecordStopsAtPrefix) {
             EXPECT_FALSE(store.get(i).has_value());
         }
     }
+}
+
+/**
+ * @brief Tombstone 测试：存储特殊字符串 "__tombstone__"
+ * 
+ * 验证用户可以存储任意字符串，包括 "__tombstone__"，
+ * 而不会被误认为是删除标记。
+ */
+TEST_F(KVStoreTest, StoreSpecialStringTombstone) {
+    KVStore store(test_dir_);
+    
+    store.put(1, "__tombstone__");
+    
+    auto result = store.get(1);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result.value(), "__tombstone__");
+}
+
+/**
+ * @brief Tombstone 测试：删除后查询返回 nullopt
+ */
+TEST_F(KVStoreTest, DeleteThenGetReturnsNullopt) {
+    KVStore store(test_dir_);
+    
+    store.put(1, "value1");
+    EXPECT_TRUE(store.get(1).has_value());
+    
+    store.del(1);
+    EXPECT_FALSE(store.get(1).has_value());
+}
+
+/**
+ * @brief Tombstone 测试：删除后重新写入返回新值
+ */
+TEST_F(KVStoreTest, DeleteThenRewriteReturnsNewValue) {
+    KVStore store(test_dir_);
+    
+    store.put(1, "old_value");
+    store.del(1);
+    store.put(1, "new_value");
+    
+    auto result = store.get(1);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result.value(), "new_value");
+}
+
+/**
+ * @brief Tombstone 测试：重启后删除语义正确
+ */
+TEST_F(KVStoreTest, TombstonePersistsAfterRecovery) {
+    {
+        KVStore store(test_dir_);
+        store.put(1, "value1");
+        store.del(1);
+        store.put(2, "value2");
+    }
+    
+    {
+        KVStore store(test_dir_);
+        EXPECT_FALSE(store.get(1).has_value());
+        
+        auto result = store.get(2);
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(result.value(), "value2");
+    }
+}
+
+/**
+ * @brief Tombstone 测试：Flush 后删除语义正确
+ */
+TEST_F(KVStoreTest, TombstonePersistsAfterFlush) {
+    KVStore store(test_dir_);
+    
+    store.put(1, "value1");
+    store.Flush();
+    
+    EXPECT_TRUE(store.get(1).has_value());
+    
+    store.del(1);
+    store.Flush();
+    
+    EXPECT_FALSE(store.get(1).has_value());
+}
+
+class CompactionTriggerTest : public KVStoreTest {
+};
+
+TEST_F(CompactionTriggerTest, GetL0FileCountReturnsCorrectCount) {
+    KVStore store(test_dir_);
+    
+    EXPECT_EQ(store.GetL0FileCount(), 0);
+    
+    store.put(1, "v1");
+    store.Flush();
+    EXPECT_EQ(store.GetL0FileCount(), 1);
+    
+    store.put(2, "v2");
+    store.Flush();
+    EXPECT_EQ(store.GetL0FileCount(), 2);
+    
+    store.put(3, "v3");
+    store.Flush();
+    EXPECT_EQ(store.GetL0FileCount(), 3);
+}
+
+TEST_F(CompactionTriggerTest, ShouldCompactReturnsFalseBelowThreshold) {
+    KVStore store(test_dir_);
+    
+    store.put(1, "v1");
+    store.Flush();
+    EXPECT_EQ(store.GetL0FileCount(), 1);
+    
+    store.put(2, "v2");
+    store.Flush();
+    EXPECT_EQ(store.GetL0FileCount(), 2);
+    
+    store.put(3, "v3");
+    store.Flush();
+    EXPECT_EQ(store.GetL0FileCount(), 3);
+}
+
+TEST_F(CompactionTriggerTest, ShouldCompactReturnsTrueAtThreshold) {
+    KVStore store(test_dir_);
+    
+    for (int i = 0; i < 3; ++i) {
+        store.put(i, "v" + std::to_string(i));
+        store.Flush();
+    }
+    EXPECT_EQ(store.GetL0FileCount(), 3);
+    
+    store.put(4, "v4");
+    store.Flush();
+    
+    EXPECT_EQ(store.GetL0FileCount(), 0);
+    
+    for (int i = 0; i < 3; ++i) {
+        auto v = store.get(i);
+        ASSERT_TRUE(v.has_value());
+        EXPECT_EQ(v.value(), "v" + std::to_string(i));
+    }
+    auto v4 = store.get(4);
+    ASSERT_TRUE(v4.has_value());
+    EXPECT_EQ(v4.value(), "v4");
+}
+
+TEST_F(CompactionTriggerTest, CustomThresholdConfigWorks) {
+    CompactionConfig config;
+    config.l0_trigger_count = 2;
+    
+    KVStore store(test_dir_, config);
+    
+    store.put(1, "v1");
+    store.Flush();
+    EXPECT_EQ(store.GetL0FileCount(), 1);
+    
+    store.put(2, "v2");
+    store.Flush();
+    
+    EXPECT_EQ(store.GetL0FileCount(), 0);
+    
+    auto v1 = store.get(1);
+    ASSERT_TRUE(v1.has_value());
+    EXPECT_EQ(v1.value(), "v1");
+    
+    auto v2 = store.get(2);
+    ASSERT_TRUE(v2.has_value());
+    EXPECT_EQ(v2.value(), "v2");
 }

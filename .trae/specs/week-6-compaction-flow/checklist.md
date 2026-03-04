@@ -1,0 +1,11 @@
+- [x] DoCompaction() 方法在 KVStore 中正确声明和实现
+- [x] L0 文件选择逻辑正确收集所有 L0 文件
+- [x] CompactionMerger 正确用于多路归并
+- [x] SSTableBuilder 正确生成 L1 文件
+- [x] 临时文件机制保证原子性
+- [x] 旧 L0 文件在 Compaction 成功后被删除
+- [x] sstable_readers_ 列表正确更新
+- [x] Get 查询在 Compaction 后返回正确结果
+- [x] 重复 Key 只保留最新版本
+- [x] Tombstone 正确保留在 L1 文件中
+- [x] 所有单元测试通过 (84/84 tests passed)

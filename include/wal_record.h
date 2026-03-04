@@ -1,9 +1,11 @@
 #pragma once
 
+#include "value_type.h"
+
 #include <string>
 #include <vector>
 #include <cstdint>
-#include <cstring> // for memcpy
+#include <cstring>
 
 
 /**
@@ -43,26 +45,26 @@ enum class LogType : uint8_t {
 struct LogRecord {
     LogType type;
     std::string key;
-    std::string value;
+    Value value;
 };
 
 /**
  * @brief 将一条日志记录编码为二进制字节序列。
  *
- * 编码格式（与 Learning_Manual 约定一致）：
- * - Checksum (4B) | KeyLen (4B) | ValueLen (4B) | Type (1B) | Key | Value
+ * 编码格式：
+ * - Checksum (4B) | KeyLen (4B) | ValueLen (4B) | Type (1B) | ValueType (1B) | Key | Value
  *
  * 其中 Checksum 为对后续字段（从 KeyLen 起直到 Value 结束）的 CRC32：
- * - CRC32( KeyLen | ValueLen | Type | Key | Value )
+ * - CRC32( KeyLen | ValueLen | Type | ValueType | Key | Value )
  *
  * @param record 待编码的日志记录。
  * @return std::string 编码后的字节序列（可直接写入 WAL 文件）。
  */
 inline std::string encode_log_record(const LogRecord& record) {
     uint32_t key_len = static_cast<uint32_t> (record.key.size());
-    uint32_t value_len = static_cast<uint32_t> (record.value.size());
+    uint32_t value_len = static_cast<uint32_t> (record.value.data.size());
 
-    uint32_t total_len = 4 + 4 + 4 + 1 + key_len + value_len;
+    uint32_t total_len = 4 + 4 + 4 + 1 + 1 + key_len + value_len;
 
     std::string buffer;
     buffer.resize(total_len);
@@ -80,13 +82,17 @@ inline std::string encode_log_record(const LogRecord& record) {
     memcpy(ptr, &type_val, sizeof(uint8_t));
     ptr += sizeof(uint8_t);
 
+    uint8_t value_type_val = static_cast<uint8_t> (record.value.type);
+    memcpy(ptr, &value_type_val, sizeof(uint8_t));
+    ptr += sizeof(uint8_t);
+
     if(key_len > 0) {
         memcpy(ptr, record.key.data(), key_len);
         ptr += key_len;
     }
 
     if(value_len > 0) {
-        memcpy(ptr, record.value.data(), value_len);
+        memcpy(ptr, record.value.data.data(), value_len);
         ptr += value_len;
     }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sstable.h"      // BlockHandle, Footer
+#include "value_type.h"   // Value, ValueType
 #include "wal_record.h"   // crc32 函数
 
 #include <cstdint>
@@ -72,21 +73,23 @@ public:
      * 当缓冲区大小达到 4KB 时，自动触发 WriteBlock()。
      *
      * Entry 编码格式：
-     * +------------+--------------+-----------+-------------+
-     * | KeyLen(4B) | ValueLen(4B) | Key Bytes | Value Bytes |
-     * +------------+--------------+-----------+-------------+
+     * +------------+--------------+--------------+-----------+-------------+
+     * | KeyLen(4B) | ValueLen(4B) | ValueType(1B)| Key Bytes | Value Bytes |
+     * +------------+--------------+--------------+-----------+-------------+
      *
      * @param key 键（必须按升序添加）
-     * @param value 值
+     * @param value 值（包含数据和类型）
      */
-    void Add(const std::string& key, const std::string& value) {
+    void Add(const std::string& key, const Value& value) {
         uint32_t key_len = static_cast<uint32_t>(key.size());
-        uint32_t value_len = static_cast<uint32_t>(value.size());
+        uint32_t value_len = static_cast<uint32_t>(value.data.size());
+        uint8_t type_val = static_cast<uint8_t>(value.type);
 
         AppendUint32(data_block_buffer_, key_len);
         AppendUint32(data_block_buffer_, value_len);
+        data_block_buffer_.push_back(static_cast<char>(type_val));
         data_block_buffer_.append(key);
-        data_block_buffer_.append(value);
+        data_block_buffer_.append(value.data);
 
         last_key_ = key;
 

@@ -1,0 +1,4 @@
+- [x] `KVStore::get()` 查询顺序正确：MemTable → SSTable（从新到旧）
+- [x] 多 SSTable 查询测试通过（`MultiSSTableVersionPriority`、`MultiSSTableWithTombstone`、`MultiSSTableRecovery`）
+- [x] 项目计划文档已更新，任务一至五标记为已完成
+- [x] 所有单元测试通过（70/70 tests passed）

@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "sstable_builder.h"
+#include "value_type.h"
 
 #include <filesystem>
 #include <fstream>
@@ -65,9 +66,9 @@ TEST_F(SSTableBuilderTest, CreatesFileWithFooter) {
 TEST_F(SSTableBuilderTest, WritesSmallData) {
     {
         SSTableBuilder builder(kTestFile);
-        builder.Add("key1", "value1");
-        builder.Add("key2", "value2");
-        builder.Add("key3", "value3");
+        builder.Add("key1", Value::normal("value1"));
+        builder.Add("key2", Value::normal("value2"));
+        builder.Add("key3", Value::normal("value3"));
         builder.Finish();
     }
 
@@ -85,7 +86,7 @@ TEST_F(SSTableBuilderTest, WritesSmallData) {
 TEST_F(SSTableBuilderTest, FooterMagicNumberCorrect) {
     {
         SSTableBuilder builder(kTestFile);
-        builder.Add("test_key", "test_value");
+        builder.Add("test_key", Value::normal("test_value"));
         builder.Finish();
     }
 
@@ -110,7 +111,7 @@ TEST_F(SSTableBuilderTest, FooterMagicNumberCorrect) {
 TEST_F(SSTableBuilderTest, AutoFinishOnDestruction) {
     {
         SSTableBuilder builder(kTestFile);
-        builder.Add("auto_key", "auto_value");
+        builder.Add("auto_key", Value::normal("auto_value"));
     }
 
     EXPECT_TRUE(std::filesystem::exists(kTestFile));
@@ -133,7 +134,7 @@ TEST_F(SSTableBuilderTest, WritesMultipleBlocks) {
         for (int i = 0; i < 1000; ++i) {
             std::string key = "key_" + std::to_string(i);
             std::string value = "value_" + std::to_string(i) + "_data";
-            builder.Add(key, value);
+            builder.Add(key, Value::normal(value));
         }
         builder.Finish();
     }
@@ -149,7 +150,7 @@ TEST_F(SSTableBuilderTest, WritesMultipleBlocks) {
  */
 TEST_F(SSTableBuilderTest, FileSizeAccurate) {
     SSTableBuilder builder(kTestFile);
-    builder.Add("a", "b");
+    builder.Add("a", Value::normal("b"));
     builder.Finish();
 
     uint64_t reported_size = builder.FileSize();
@@ -176,7 +177,7 @@ TEST_F(SSTableBuilderTest, FinishedStateCorrect) {
  */
 TEST_F(SSTableBuilderTest, DoubleFinishThrows) {
     SSTableBuilder builder(kTestFile);
-    builder.Add("key", "value");
+    builder.Add("key", Value::normal("value"));
     builder.Finish();
     
     EXPECT_THROW(builder.Finish(), std::runtime_error) 

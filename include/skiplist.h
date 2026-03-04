@@ -82,6 +82,44 @@ public:
      */
     ~SkipList() = default;
 
+    SkipList(const SkipList&) = delete;
+    SkipList& operator=(const SkipList&) = delete;
+
+    SkipList(SkipList&& other) noexcept
+        : max_level(other.max_level)
+        , current_level(other.current_level)
+        , head(other.head)
+        , p(other.p)
+        , nodes_storage(std::move(other.nodes_storage))
+        , rng(std::move(other.rng))
+        , dist(std::move(other.dist)) {
+        other.head = nullptr;
+        other.current_level = 1;
+    }
+
+    SkipList& operator=(SkipList&& other) noexcept {
+        if (this != &other) {
+            max_level = other.max_level;
+            current_level = other.current_level;
+            head = other.head;
+            p = other.p;
+            nodes_storage = std::move(other.nodes_storage);
+            rng = std::move(other.rng);
+            dist = std::move(other.dist);
+            other.head = nullptr;
+            other.current_level = 1;
+        }
+        return *this;
+    }
+
+    void clear() {
+        nodes_storage.clear();
+        auto head_node = std::make_unique<Node<K, V>>(K(), V(), max_level);
+        head = head_node.get();
+        nodes_storage.push_back(std::move(head_node));
+        current_level = 1;
+    }
+
     /**
      * @brief 插入或更新一个键值对
      * 
@@ -108,6 +146,40 @@ public:
      * @return false 键不存在，删除失败
      */
     bool remove(K key);
+
+    /**
+     * @brief 获取跳表中的节点数量
+     *
+     * @return size_t 节点数量（不含哨兵头节点）
+     */
+    size_t size() const { return nodes_storage.size() - 1; }
+
+    /**
+     * @brief 检查跳表是否为空
+     *
+     * @return true 为空
+     * @return false 不为空
+     */
+    bool empty() const { return size() == 0; }
+
+    /**
+     * @brief 前向声明迭代器类
+     */
+    class Iterator;
+
+    /**
+     * @brief 获取指向第一个元素的迭代器
+     *
+     * @return Iterator 指向最小 key 的迭代器
+     */
+    Iterator begin() const { return Iterator(head->forward[0]); }
+
+    /**
+     * @brief 获取尾后迭代器
+     *
+     * @return Iterator 尾后迭代器（nullptr）
+     */
+    Iterator end() const { return Iterator(nullptr); }
 };
 
 template <typename K, typename V>
@@ -237,7 +309,7 @@ bool SkipList<K, V>::remove(K key){
         --current_level;
     }
 
-    // 断链仅保证“逻辑不可达”；要回收内存，需要把对应节点从 nodes_storage 中擦除
+    // 断链仅保证"逻辑不可达"；要回收内存，需要把对应节点从 nodes_storage 中擦除
     for(auto it = nodes_storage.begin(); it != nodes_storage.end(); ++it) {
         if(it->get() == target) {
             nodes_storage.erase(it);
@@ -246,3 +318,77 @@ bool SkipList<K, V>::remove(K key){
     }
     return true;
 }
+
+/**
+ * @brief SkipList 迭代器类
+ *
+ * 提供顺序遍历跳表中所有 KV 对的能力。
+ * 迭代器只遍历 Level 0（包含所有节点的完整链表）。
+ *
+ * @tparam K 键类型
+ * @tparam V 值类型
+ */
+template <typename K, typename V>
+class SkipList<K, V>::Iterator {
+public:
+    /**
+     * @brief 构造函数
+     *
+     * @param node 起始节点指针
+     */
+    explicit Iterator(Node<K, V>* node) : current_(node) {}
+
+    /**
+     * @brief 解引用运算符：获取当前节点的键
+     *
+     * @return const K& 当前键的常量引用
+     */
+    const K& key() const { return current_->key; }
+
+    /**
+     * @brief 解引用运算符：获取当前节点的值
+     *
+     * @return const V& 当前值的常量引用
+     */
+    const V& value() const { return current_->value; }
+
+    /**
+     * @brief 前置递增运算符：移动到下一个节点
+     *
+     * @return Iterator& 移动后的迭代器引用
+     */
+    Iterator& operator++() {
+        if (current_) {
+            current_ = current_->forward[0];
+        }
+        return *this;
+    }
+
+    /**
+     * @brief 后置递增运算符：移动到下一个节点
+     *
+     * @return Iterator 移动前的迭代器副本
+     */
+    Iterator operator++(int) {
+        Iterator tmp = *this;
+        ++(*this);
+        return tmp;
+    }
+
+    /**
+     * @brief 相等比较运算符
+     */
+    bool operator==(const Iterator& other) const {
+        return current_ == other.current_;
+    }
+
+    /**
+     * @brief 不相等比较运算符
+     */
+    bool operator!=(const Iterator& other) const {
+        return current_ != other.current_;
+    }
+
+private:
+    Node<K, V>* current_;
+};
